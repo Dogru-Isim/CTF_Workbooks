@@ -684,6 +684,8 @@ for (let i = 0; i <= WHAT_SHOULD_YOU_PUT_HERE?; i++) {
 ```
 
 <details>
+  <summary>Click to reveal the answer</summary>
+
   9999 and 6
 </details>
 
