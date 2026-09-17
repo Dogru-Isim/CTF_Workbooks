@@ -1,9 +1,13 @@
 # CTF Workbook: No FA
 
  **Platform:** picoCTF 2026
+
  **Category:** Web
+
  **Difficulty:** Beginner → Intermediate
+
  **Suggested duration:** 60–90 minutes
+
  **Source:** https://learn.cylabacademy.org/library/765?page=1&category=1&difficulty=2
 
 ---

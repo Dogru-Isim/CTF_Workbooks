@@ -1,9 +1,13 @@
 # Shared Secrets
 
 > **Difficulty:** Beginner → Intermediate
+
 > **Category:** Cryptography
+
 > **Estimated time:** 60–90 minutes
+
 > **Tools:** Python 3, Linux terminal, text editor, browser
+
 > **Source:** https://learn.cylabacademy.org/library/715?page=1&category=2&difficulty=1
 
 ---

@@ -1,9 +1,13 @@
 # Flag Hunters
 
 > **Difficulty:** Beginner / Intermediate\
+
 >  **Category:** Reverse Engineering
+
 >  **Skills:** Python code reading, control-flow analysis, input injection, source-code auditing\
->  **Tools:** Python 3, a code editor (VS Code, Vim, Notepad?), `nc` / `netcat``
+
+>  **Tools:** Python 3, a code editor (VS Code, Vim, Notepad?), `nc` / `netcat`
+
 >  **Source:** https://learn.cylabacademy.org/library/472?page=1&category=3&difficulty=1
 
 ---
