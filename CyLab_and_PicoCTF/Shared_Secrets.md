@@ -145,13 +145,13 @@ Do **not** try to understand every number yet.
 
 Instead, make a table.
 
-| Name              | Value type | Public or secret? | Where did you find it? |
-| ----------------- | ---------- | ----------------- | ---------------------- |
-| `g`               |            |                   |                        |
-| `p`               |            |                   |                        |
-| `A`               |            |                   |                        |
-| `b`               |            |                   |                        |
-| encrypted message |            |                   |                        |
+| Name              | Public or secret? | Where did you find it? |
+| ----------------- | ----------------- | ---------------------- |
+| `g`               |                   |                        |
+| `p`               |                   |                        |
+| `A`               |                   |                        |
+| `b`               |                   |                        |
+| encrypted message |                   |                        |
 
 ### Question
 
