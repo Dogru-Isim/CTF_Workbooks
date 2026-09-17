@@ -275,8 +275,7 @@ print(shared_alice)
 print(shared_bob)
 ```
 
-### Checkpoint
-
+### Question
 Do the two values match?
 
 > Answer:

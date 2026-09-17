@@ -412,9 +412,8 @@ PASSWORD FOUND
 
 ---
 
-## Checkpoint
 
- What password did you recover?
+What password did you recover?
 
 ```
 Recovered password:
