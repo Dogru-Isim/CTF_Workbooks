@@ -186,11 +186,9 @@ vpn.irvn.nl
 ### Challenge: Find the PoC of a vulnerability that this service was affected by.
 
 <details>
-<summary> Hint </summary>
-
-Look up if the vpn service has any CVEs, then look<br>
+<summary>Hint</summary>
+Look up if the vpn service has any CVEs, then look <br>
 up if PoCs have been released on GitHub for those CVEs.
-
 </details>
 
 ## Staying in Scope
