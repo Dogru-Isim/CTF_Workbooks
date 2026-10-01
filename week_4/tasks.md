@@ -195,9 +195,9 @@ up if PoCs have been released on GitHub for those CVEs.
 
 ### General Information
 
-Sometimes a recon can go out-of-scope. You think you find an ASN that belongs to an organization when it doesn't. Or you do an IP lookup using an domain by the organization (irvn.nl -> )
+Sometimes a recon can go out-of-scope. You think you find an ASN that belongs to an organization when it doesn't. Or you do an IP lookup using an domain by the organization (irvn.nl -> ?)
 
-### Challenge: If you attack the IP address that ftp.irvn.nl resolves to, are you in the same scope as ftp.irvn.nl?
+### Challenge: If you attack the IP address that irvn.nl resolves to, are you in the same scope as irvn.nl?
 
 <details>
 <summary> Hint 1 </summary>
