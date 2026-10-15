@@ -37,7 +37,7 @@ If you don't have docker you can either install it or run "pip install pyinstxtr
 
 You should now have a directory that contains the files extracted from the executable. Find the "main" file.
 
-.pyc files are not human-readable. A decompiler like pylingual or [decompiler.com](https://www.decompiler.com/python) can
+.pyc files are not human-readable. A decompiler like [pylingual](https://pylingual.io/) or [decompiler.com](https://www.decompiler.com/python) can
 decompile Python bytecode (.pyc files) back into its original form. The result is not always identical to the original code
 (variable names and comments may be lost), but it is usually easy to read.
 
