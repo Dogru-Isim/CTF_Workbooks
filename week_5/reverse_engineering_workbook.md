@@ -12,6 +12,21 @@ The program was written in Python and packed with PyInstaller. PyInstaller bundl
 with the program's bytecode (.pyc files). Bytecode can be unpacked and turned back into readable source with the
 right tools.
 
+### Challenge 0: Identify the executable type
+
+Find how this executable was created. What was the original programming language that the challenge maker use and which software did they use
+to create an executable?
+
+<details><summary>Hint 1</summary>
+Try running `strings -n 10 name_of_the_file` to see if any information is leaked by the executable strings.
+
+Alternatively, use Detect It Easy.
+</details>
+
+<details><summary>Answer</summary>
+The executable was written in Python and compiled with PyInstaller.
+</details>
+
 ### Challenge 1: Unpack the Executable
 
 Extract the provided executable (main or main, one for Linux and one for Windows).
@@ -266,3 +281,604 @@ Build the full password and get the flag
 <details><summary>Answer</summary>
 NHC{pyZ_Ch3Cks_Fr0M_1Nv3Rs3_T0_V1G3N3R3_T0_Crypt0}
 </details>
+
+
+## Exercise 2: Reversing a Self-Decrypting Binary
+
+### General Information
+
+Tools used for this exercise:
+
+| Tool | What it does |
+|---|---|
+| `strings`, `nm` or `objdump -t` | Quick look at text and symbols in the binary |
+| `objdump` | Disassembler. Ghidra, IDA or Binary Ninja work too |
+| Python 3 with `pycryptodome` | Decrypting the code, re-implementing the hash |
+| `gdb` (optional) | For the dynamic route |
+
+---
+
+### Challenge 1: Run the program and understand its behavior
+
+<details>
+<summary>Answer</summary>
+Option 3 only shows up on one specific dream level.
+
+Each level shows a menu. "Go deeper" (1) takes you one level down and "Kick" (2) takes you one level up. The extra option "Implant" (3) only appears at level 3. Type `1`, `1`, `3` to get there. The program then asks:
+
+```
+> Enter idea:
+```
+
+If you pick 3 on any other level you get "Mission failed" and the program exits. Kicking at level 1 also ends the program.
+</details>
+
+We can now start solving the challenge.
+
+## Step 1: Type a few different ideas. What does the program print?
+
+<details>
+<summary>Hint</summary>
+Try <code>AAAAAAAA</code>, then something with only a single letter changed.
+</details>
+
+<details>
+<summary>Answer</summary>
+
+The program prints a `> Hash:` line with hex bytes. The hash always has the same number of bytes as your input, and `AAAAAAAA` gives:
+
+```
+> Hash: 8c3f9fde8c3f9fde
+```
+
+Keep this value. It is a test vector you can use later to check your own re-implementation of the hash function.
+
+Note that the hash has the same length as the input and that some characters repeat in this example. Both are hints that the function is some kind of simple scrambling and not a real cryptographic hash.
+</details>
+
+> Why is it useful that the output length equals the input length?
+
+<details>
+<summary>Answer</summary>
+It means the function is almost certainly a reversible transformation (a permutation of bits plus some xors), and not a one-way hash. It also tells us the flag length: if we find the target hash and it has 37 bytes, the flag has 37 characters.
+</details>
+
+---
+
+## Step 2: First Look at the Binary
+
+### Challenge 2: List the readable strings and function names. Can you identify the encryption algorithm and the functions the program uses?
+
+<details>
+<summary>Hint 1</summary>
+<code>strings -n 6 main</code> shows text. <code>objdump -t main</code> shows the symbol table (things like variable and function names used by the executable).
+</details>
+
+<details>
+<summary>Hint 2</summary>
+Symbols that are in the `.text` section are function names. For more information, see what the .text section does in an executable
+</details>
+
+<details>
+<summary>Answer</summary>
+
+```sh
+strings -n 6 main'
+```
+
+```
+secure-p
+...
+mmap@GLIBC_2.2.5
+...
+AES_ECB_decrypt
+...
+AES_init_ctx
+...
+inception
+...
+AES_ECB_encrypt
+```
+
+```sh
+objdump -t main
+```
+
+```
+0000000000001229 g     F .text    0000000000000072              print_hash
+...
+000000000000129b g     F .text    00000000000002d1              inception
+000000000000156c g     F .text    0000000000000108              main
+0000000000001933 g     F .text    000000000000002a              AES_init_ctx
+...
+00000000000027a1 g     F .text    000000000000002a              AES_ECB_encrypt
+00000000000027cb g     F .text    000000000000002a              AES_ECB_decrypt
+```
+
+<details>
+<summary>Some more information that will help with understanding the challenge</summary>
+
+Things that stand out:
+
+- AES functions in a program that has nothing to do with encryption on the surface.
+- `mmap` (and, if you look at the imports, `mprotect`), which are used to create memory and change its permissions.
+- A function named `inception`.
+- The start of a string, `secure-p`. It is cut off because the compiler loads the rest of it in a different way (more on that below).
+</details>
+
+> What do `mmap` and `mprotect` together suggest about what the program does with that memory?
+  
+Normal data is not executable. If a program creates memory, fills it with something and then makes it executable with <code>mprotect</code>, it is preparing to run code that did not exist in the file as plain code. Combined with the AES functions, the likely story is: decrypt code, put it in new memory, make it executable, call it.
+</details>
+
+---
+
+## Step 3: Reading `inception()`
+
+### General Information
+
+Disassemble the one function that does the work:
+
+```sh
+objdump -d -M intel main --disassemble=inception
+```
+
+You do not have to read every line. Look for calls to functions you recognize (`AES_init_ctx`, `AES_ECB_decrypt`, `mmap`, `mprotect`, `scanf`, `print_hash`) and read the instructions around them.
+
+### Challenge 3: Find the AES key
+
+<details>
+<summary>Hint 1</summary>
+Look right before the call to <code>AES_init_ctx</code>. Two big constants are loaded with <code>movabs</code>.
+</details>
+
+<details>
+<summary>Hint 2</summary>
+x86 is little endian, so the bytes of each constant come out in reverse order when you read the hex from left to right.
+</details>
+
+<details>
+<summary>Answer</summary>
+
+```
+movabs rax,0x702d657275636573
+movabs rdx,0x64726f77737361
+mov    QWORD PTR [rbp-0x4a0],rax
+mov    QWORD PTR [rbp-0x498],rdx
+...
+call   1933 <AES_init_ctx>
+```
+
+Reverse the bytes of each constant:
+
+```py
+>>> bytes.fromhex('702d657275636573')[::-1]
+b'secure-p'
+>>> bytes.fromhex('0064726f77737361')[::-1]
+b'assword\x00'
+```
+
+The key is `secure-password` plus a zero byte, which makes exactly 16 bytes (AES-128).
+</details>
+
+### Challenge 4: Find where the encrypted code is stored and how long it is
+
+<details>
+<summary>Hint 1</summary>
+Before the key is set up there is a block copy (<code>rep movs</code>). Look at the <code>lea</code> that loads the source address and the <code>mov ecx, ...</code> that sets the count.
+</details>
+
+<details>
+<summary>Hint 2</summary>
+<code>rep movs QWORD</code> copies 8 bytes per count.
+</details>
+
+<details>
+<summary>Answer</summary>
+
+```
+12b9: lea    rax,[rbp-0x3e0]          ; destination, on the stack
+12c0: lea    rdx,[rip+0x1e99]         ; source: address 0x3160 (in .rodata)
+12c7: mov    ecx,0x7a                 ; 0x7a = 122 qwords
+...
+12d2: rep movs QWORD PTR es:[rdi],QWORD PTR ds:[rsi]
+```
+
+- Source address: `0x3160`. The `.rodata` section starts at `0x3000` and its file offset is also `0x3000` (check with `readelf -S main`), so the data sits at file offset `0x3160`.
+- Length: 122 × 8 = 976 bytes.
+
+The decryption loop confirms this. It runs in steps of `0x10` (16 bytes, one AES block) while the counter is at most `0x3cf`:
+
+```
+1340: add    DWORD PTR [rbp-0x56c],0x10
+...
+134d: cmp    eax,0x3cf
+1352: jbe    131c
+```
+
+That is 61 blocks of 16 bytes, which is 976 bytes again.
+</details>
+
+> The loop calls `AES_ECB_decrypt` once per 16 byte block with no IV and no chaining. What does that tell you about the mode, and what is the practical difference for us compared with CBC?
+
+<details>
+<summary>Answer</summary>
+It is ECB mode: every block is decrypted on its own. We do not need an IV, and we can decrypt the blob with one call to any AES library using ECB mode.
+</details>
+
+### Challenge 5: What happens after decryption? How is the hidden function called?
+
+<details>
+<summary>Hint</summary>
+Follow the <code>mmap</code> call, then the copy, then <code>mprotect</code>. Finally look at what is loaded into registers before the <code>call r8</code>.
+</details>
+
+<details>
+<summary>Answer</summary>
+
+1. `mmap(NULL, 0x1000, 3, 0x22, -1, 0)` creates one page that is readable and writable (3 = `PROT_READ | PROT_WRITE`, `0x22` = private and anonymous).
+2. The decrypted bytes are copied into that page (second `rep movs`).
+3. `mprotect(page, 0x1000, 5)` changes it to readable and executable (5 = `PROT_READ | PROT_EXEC`).
+4. The page address is called as a function with four arguments:
+
+| Register | Value |
+|---|---|
+| `rdi` | pointer to the user input |
+| `esi` | length of the input (from `strlen`) |
+| `rdx` | address of `malloc` |
+| `rcx` | address of `free` |
+
+5. After the call, `print_hash` prints the input buffer. So the function changes the input in place.
+
+The reason `malloc` and `free` are passed in as arguments is that the hidden code is raw machine code with no way to link to libc, so the caller hands it the functions it needs.
+</details>
+
+---
+
+## Step 4: Decrypting the Hidden Function
+
+### Challenge 6: Get the decrypted machine code (static route)
+
+<details>
+<summary>Hint 1</summary>
+Read 976 bytes from file offset <code>0x3160</code> of <code>main</code>.
+</details>
+
+<details>
+<summary>Hint 2</summary>
+<code>pip install pycryptodome</code>, then use <code>AES.new(key, AES.MODE_ECB)</code>.
+</details>
+
+<details>
+<summary>Answer</summary>
+
+```py
+from Crypto.Cipher import AES
+
+data = open('main', 'rb').read()
+blob = data[0x3160:0x3160 + 0x3d0]        # 976 bytes
+
+key = b'secure-password\x00'
+code = AES.new(key, AES.MODE_ECB).decrypt(blob)
+
+open('hash_func.bin', 'wb').write(code)
+print(code[:16].hex())
+```
+
+Output of the last line:
+
+```
+f30f1efa554889e54883c48048897d98
+```
+
+`f3 0f 1e fa` is `endbr64` and `55 48 89 e5` is `push rbp; mov rbp, rsp`. That is how a normal compiled function starts, so the decryption worked.
+</details>
+
+> How can you tell that you have the right key without running anything?
+
+<details>
+<summary>Answer</summary>
+With the wrong key, ECB decryption gives random-looking bytes. With the right key the output starts with a typical function prologue (<code>endbr64</code>, <code>push rbp</code>, <code>mov rbp, rsp</code>) and the disassembly makes sense all the way through.
+</details>
+
+### Alternative: Get the decrypted code with gdb (dynamic route)
+
+<details>
+<summary>Hint</summary>
+The decrypted code is in memory right before <code>mprotect</code> is called. The first argument of <code>mprotect</code> is the address of the page that holds the code.
+</details>
+
+<details>
+<summary>Answer</summary>
+
+```sh
+gdb ./main
+(gdb) break mprotect
+(gdb) run
+```
+
+Type `1`, `1`, `3` in the program to reach the point where `inception()` runs. When gdb stops at `mprotect`, the page address is in `rdi`:
+
+```
+(gdb) dump binary memory hash_func.bin $rdi $rdi+976
+```
+
+You end up with the same `hash_func.bin` as the static route.
+</details>
+
+---
+
+## Step 5: Reading the Hash Function
+
+### Challenge 7: Disassemble `hash_func.bin`
+
+<details>
+<summary>Hint</summary>
+The file is raw machine code with no headers. Tell the tool what architecture it is. In Ghidra, import it as a raw binary with language x86 64-bit little endian.
+</details>
+
+<details>
+<summary>Answer</summary>
+
+```sh
+objdump -D -b binary -mi386:x86-64 -M intel hash_func.bin
+```
+
+The function is about 0x3c6 bytes long. The rest of the 976 bytes is zero padding (it shows up as `...` at the end).
+</details>
+
+### Challenge 8: Work out what the function does, step by step
+
+<details>
+<summary>Hint 1</summary>
+Start with the function prologue. Four arguments are saved to the stack, then two constants and the number 4 are stored. After that it calls <code>rdx</code> (malloc) and copies the input into the new buffer.
+</details>
+
+<details>
+<summary>Hint 2</summary>
+The function consists of five loops that each walk over all bytes (<code>cmp ..., [rbp-0x6c]</code> is the comparison with the length). Look at what each loop reads and writes.
+</details>
+
+<details>
+<summary>Hint 3</summary>
+Three loops read bytes at an offset and combine two neighbouring bytes with <code>shl</code>, <code>sar</code> and <code>or</code>. Two loops use <code>xor</code> with a 4 byte constant. Read the offsets from the <code>mov DWORD PTR [rbp-...], N</code> lines at the start of each loop.
+</details>
+
+<details>
+<summary>Answer</summary>
+
+**Setup (offsets 0x00 to 0x85)**
+
+| Instruction | Meaning |
+|---|---|
+| `mov DWORD PTR [rbp-0x10],0xb43016ae` | 4 byte constant K1 |
+| `mov DWORD PTR [rbp-0xc],0xa0175f75` | 4 byte constant K2 |
+| `mov DWORD PTR [rbp-0x34],0x4` | key length for the xor loops is 4 |
+| `call rdx` | `tmp = malloc(len)` |
+| loop at 0x5a | `tmp[i] = input[i]` for all i |
+
+Since x86 is little endian, K1 as bytes is `ae 16 30 b4` and K2 is `75 5f 17 a0`.
+
+**The five loops** (n is the input length, indexes wrap around with a modulo)
+
+| Loop at | Offset constants | What it does |
+|---|---|---|
+| 0x91 | `2` and `1` | `input[i] = (tmp[i-3] << 7) \| (tmp[i-2] >> 1)` |
+| 0x162 | uses K1 | `tmp[i] = input[i] ^ K1[i % 4]` |
+| 0x1ab | `5` and `1` | `input[i] = (tmp[i+5] << 1) \| (tmp[i+6] >> 7)` |
+| 0x289 | uses K2 | `tmp[i] = input[i] ^ K2[i % 4]` |
+| 0x2d2 | `0xc` and `1` | `input[i] = (tmp[i-13] << 7) \| (tmp[i-12] >> 1)` |
+
+Then `free(tmp)` is called and the function returns.
+
+All indexes are taken modulo n. The assembly has extra code for this (the `test eax,eax`, `jns` and `idiv` parts) because the C modulo operator gives a negative result for negative numbers and the compiler has to correct that. In Python `%` already does the right thing.
+
+**What the three shift loops really do**
+
+Each output byte takes the top 7 bits of one byte and the lowest bit of its neighbour. If you glue all bytes together into one long bit string, that is just a rotation of the whole string:
+
+| Loop | Bit string operation |
+|---|---|
+| 0x91 | rotate right by 2 × 8 + 1 = 17 bits |
+| 0x1ab | rotate left by 5 × 8 + 1 = 41 bits |
+| 0x2d2 | rotate right by 12 × 8 + 1 = 97 bits |
+
+So the whole "hash" is:
+
+```
+rotate right 17  ->  xor K1  ->  rotate left 41  ->  xor K2  ->  rotate right 97
+```
+
+where "xor K" means xor with the 4 byte constant repeated over the whole string.
+</details>
+
+> The task description calls this an "advanced proprietary cryptographic hash function". Name two properties of a real cryptographic hash that this function does not have.
+
+<details>
+<summary>Answer</summary>
+It is reversible (a hash must be one way), and the output length depends on the input length (a hash has a fixed output size). It also has no avalanche effect: changing one input bit changes exactly one output bit, because rotations and xors just move bits around.
+</details>
+
+### Challenge 9: Re-implement the function in Python and check it against the real program
+
+<details>
+<summary>Hint 1</summary>
+Follow the five loops exactly, using <code>tmp</code> and <code>input</code> as two separate byte arrays. Mind which loop reads from which array.
+</details>
+
+<details>
+<summary>Hint 2</summary>
+Test vector from Step 1: the input <code>AAAAAAAA</code> must give <code>8c3f9fde8c3f9fde</code>.
+</details>
+
+<details>
+<summary>Answer</summary>
+
+```py
+K1 = bytes.fromhex('ae1630b4')
+K2 = bytes.fromhex('755f17a0')
+
+def hash_bytes(data):
+    n = len(data)
+    inp = bytearray(data)
+    tmp = bytearray(data)
+
+    # loop 1: shift 2 bytes, then 1 bit
+    for i in range(n):
+        a = tmp[(i - 2) % n]
+        b = tmp[(i - 3) % n]
+        inp[i] = ((b << 7) | (a >> 1)) & 0xff
+    # loop 2: xor with K1
+    for i in range(n):
+        tmp[i] = inp[i] ^ K1[i % 4]
+    # loop 3: shift 5 bytes, the other direction
+    for i in range(n):
+        a = tmp[(i + 5) % n]
+        b = tmp[(i + 6) % n]
+        inp[i] = ((a << 1) | (b >> 7)) & 0xff
+    # loop 4: xor with K2
+    for i in range(n):
+        tmp[i] = inp[i] ^ K2[i % 4]
+    # loop 5: shift 12 bytes, then 1 bit
+    for i in range(n):
+        a = tmp[(i - 12) % n]
+        b = tmp[(i - 13) % n]
+        inp[i] = ((b << 7) | (a >> 1)) & 0xff
+    return bytes(inp)
+```
+
+```py
+>>> hash_bytes(b'AAAAAAAA').hex()
+'8c3f9fde8c3f9fde'
+```
+
+It matches the program. If yours does not, look at loop 3 first. It is the only one that rotates to the left, and it is easy to copy loop 1 by mistake.
+</details>
+
+---
+
+## Step 6: Finding the Target Hash
+
+### Challenge 10: Find the bytes that the hash is compared against
+
+<details>
+<summary>Hint 1</summary>
+Look at the end of <code>inception()</code>, just after the call to <code>print_hash</code>. There is a loop that compares two arrays byte by byte.
+</details>
+
+<details>
+<summary>Hint 2</summary>
+Four <code>movabs</code>/<code>mov</code> pairs and two smaller moves fill the array on the stack. Reverse the bytes of each immediate, just like with the key.
+</details>
+
+<details>
+<summary>Answer</summary>
+
+```
+14a0: movabs rax,0xa8c4272696cf06ae        ; ae 06 cf 96 26 27 c4 a8
+14a9: movabs rdx,0x4388af19a35d1107        ; 07 11 5d a3 19 af 88 43
+14c1: movabs rax,0xc7852eb5c710879b        ; 9b 87 10 c7 b5 2e 85 c7
+14cb: movabs rdx,0x6606ab96d1032534        ; 34 25 03 d1 96 ab 06 66
+14e3: mov    DWORD PTR [rbp-0x470],0x518b2c16   ; 16 2c 8b 51
+14ed: mov    BYTE PTR  [rbp-0x46c],0xb4         ; b4
+```
+
+Put together in order, this is 37 bytes:
+
+```
+ae06cf962627c4a807115da319af88439b8710c7b52e85c7342503d196ab0666162c8b51b4
+```
+
+The loop right after compares `input[i]` with this array for each of the 37 positions, where `input` has already been replaced by its hash. So the input we want is the one whose hash is this array.
+</details>
+
+> Does the program check the length of the input in any other way?
+
+<details>
+<summary>Answer</summary>
+No. It only compares the first 37 bytes. The hash function keeps the length, so a 37 byte flag is what we expect, and it matches the flag format length.
+</details>
+
+---
+
+## Step 7: Reversing the Hash
+
+### Challenge 11: Recover the flag from the target bytes
+
+<details>
+<summary>Hint 1</summary>
+Every step of the hash can be undone. Go through the five steps in reverse order.
+</details>
+
+<details>
+<summary>Hint 2</summary>
+Xor undoes itself. A rotation to the right by k bits is undone by a rotation to the left by k bits, and the other way around.
+</details>
+
+<details>
+<summary>Hint 3</summary>
+Treat the 37 bytes as one 296 bit big endian integer. Rotations are then simple shifts with a mask.
+</details>
+
+<details>
+<summary>Answer</summary>
+
+The hash is: rotate right 17, xor K1, rotate left 41, xor K2, rotate right 97.
+
+The inverse is: rotate left 97, xor K2, rotate right 41, xor K1, rotate left 17.
+
+```py
+K1 = bytes.fromhex('ae1630b4')
+K2 = bytes.fromhex('755f17a0')
+target = bytes.fromhex(
+    'ae06cf962627c4a807115da319af88439b8710c7b52e85c7342503d196ab0666162c8b51b4'
+)
+
+n = len(target)          # 37
+bits = n * 8             # 296
+mask = (1 << bits) - 1
+
+def rotr(x, k):
+    k %= bits
+    return ((x >> k) | (x << (bits - k))) & mask
+
+def rotl(x, k):
+    return rotr(x, bits - (k % bits))
+
+def xor_key(x, key):
+    return x ^ int.from_bytes((key * n)[:n], 'big')
+
+def backward(b):
+    x = int.from_bytes(b, 'big')
+    x = rotl(x, 97)
+    x = xor_key(x, K2)
+    x = rotr(x, 41)
+    x = xor_key(x, K1)
+    x = rotl(x, 17)
+    return x.to_bytes(n, 'big')
+
+print(backward(target).decode())
+```
+
+Output:
+
+```
+Trojan{n0_s3cur1ty_thr0ugh_0bscur1ty}
+```
+
+Check it against the real program:
+
+```sh
+printf '1\n1\n3\nTrojan{n0_s3cur1ty_thr0ugh_0bscur1ty}\n' | ./main
+```
+
+The program prints the same hash as the target bytes, followed by:
+
+```
+Mission completed successfully.
+You have unlocked Roberts mind, you are a free man now!
+```
+
+You can also feed `hash_bytes` from Step 5 the flag and compare the result with the target. If you did the byte-by-byte version, this is a good way to check both directions at once.
+</details>
+
