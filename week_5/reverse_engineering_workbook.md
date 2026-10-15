@@ -272,14 +272,17 @@ sat
 >>> long_to_bytes(s.model()[x].as_long())
 b'T0_Crypt0}'
 ```
+</details>
 
 > Can you solve this one without z3?
 
 ### Finally
 
 Build the full password and get the flag
-<details><summary>Answer</summary>
+<details><summary>Flag</summary>
+  
 NHC{pyZ_Ch3Cks_Fr0M_1Nv3Rs3_T0_V1G3N3R3_T0_Crypt0}
+  
 </details>
 
 
@@ -878,7 +881,5 @@ The program prints the same hash as the target bytes, followed by:
 Mission completed successfully.
 You have unlocked Roberts mind, you are a free man now!
 ```
-
-You can also feed `hash_bytes` from Step 5 the flag and compare the result with the target. If you did the byte-by-byte version, this is a good way to check both directions at once.
 </details>
 
