@@ -19,7 +19,7 @@ Extract the provided executable (main or main, one for Linux and one for Windows
 <details>
   <summary>Hint 1</summary>
 The executables were created with PyInstaller. PyInstaller packages Python scripts, modules, and dependencies into
-a single archive format. Tools like pyinstxtractor-ng can unpack this archive to discover compiled Python code (.pyc files).
+a single archive format. Tools like pyinstxtractor-ng or [its web version](https://pyinstxtractor-web.netlify.app/) can unpack this archive to discover compiled Python code (.pyc files).
 </details>
 
 <details>
@@ -29,7 +29,7 @@ Run this in the folder that contains main:
 docker run --rm -v "$PWD":/pwd -w /pwd python:3.12-slim bash -c 'pip install pyinstxtractor-ng && pyinstxtractor-ng main'
 
   
-If you don't have docker you can either install it or run "pip install pyinstxtractor-ng && pyinstxtractor-ng main"
+If you don't have docker you can use the web version as well.
 
 </details>
 
@@ -94,12 +94,14 @@ look into every directory manually.
 Run
   
 ```bash
-pylingual main._extracted/PYZ.pyz_extracted/check.pyc
-pylingual main._extracted/PYZ.pyz_extracted/chech.pyc
-pylingual main._extracted/PYZ.pyz_extracted/chic.pyc
-pylingual main._extracted/PYZ.pyz_extracted/czech.pyc
-pylingual main._extracted/PYZ.pyz_extracted/cheque.pyc
+pylingual main_extracted/PYZ.pyz_extracted/check.pyc
+pylingual main_extracted/PYZ.pyz_extracted/chech.pyc
+pylingual main_extracted/PYZ.pyz_extracted/chic.pyc
+pylingual main_extracted/PYZ.pyz_extracted/czech.pyc
+pylingual main_extracted/PYZ.pyz_extracted/cheque.pyc
 ```
+
+Or use the website version (pylingual.io) to decompile the aforementioned files.
 </details>
 
 ### Challenge 4: Find the first piece  
